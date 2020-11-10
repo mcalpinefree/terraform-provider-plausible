@@ -2,7 +2,7 @@ package main
 
 import (
 	"github.com/hashicorp/terraform-plugin-sdk/v2/plugin"
-	"github.com/hashicorp/terraform-provider-scaffolding/internal/provider"
+	"github.com/mcalpinefree/terraform-provider-plausible/internal/provider"
 )
 
 var (
