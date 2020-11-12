@@ -29,8 +29,8 @@ func New(version string) func() *schema.Provider {
 				"scaffolding_data_source": dataSourceScaffolding(),
 			},
 			ResourcesMap: map[string]*schema.Resource{
-				"scaffolding_resource": resourceScaffolding(),
-				"plausible_site":       resourceSite(),
+				"plausible_site":        resourceSite(),
+				"plausible_shared_link": resourceSharedLink(),
 			},
 		}
 
