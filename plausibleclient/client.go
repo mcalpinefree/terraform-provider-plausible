@@ -102,6 +102,44 @@ func (c *Client) DeleteSite(domain string) error {
 	return err
 }
 
+func (c *Client) UpdateSite(domain, timezone string) error {
+	if !c.loggedIn {
+		err := c.login()
+		if err != nil {
+			return err
+		}
+	}
+	// get csrf token
+	resp, err := c.httpClient.Get("https://plausible.io/" + domain + "/settings")
+	if err != nil {
+		return nil
+	}
+	defer resp.Body.Close()
+
+	// Load the HTML document
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return err
+	}
+
+	// Find the form CSRF token
+	csrfToken := ""
+	csrfTokenExists := false
+	doc.Find(`form > input[name="_csrf_token"]`).Each(func(i int, s *goquery.Selection) {
+		csrfToken, csrfTokenExists = s.Attr("value")
+	})
+	if !csrfTokenExists {
+		return fmt.Errorf("could not find csrf token in HTML form")
+	}
+
+	values := url.Values{}
+	values.Add("_csrf_token", csrfToken)
+	values.Add("_method", "put")
+	values.Add("site[timezone]", timezone)
+	resp, err = c.httpClient.PostForm("https://plausible.io/"+domain+"/settings", values)
+	return err
+}
+
 func NewClient(username, password string) *Client {
 	c := Client{}
 	c.username = username

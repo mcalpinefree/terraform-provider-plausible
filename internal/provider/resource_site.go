@@ -59,7 +59,15 @@ func resourceSiteRead(d *schema.ResourceData, meta interface{}) error {
 
 func resourceSiteUpdate(d *schema.ResourceData, meta interface{}) error {
 	// use the meta value to retrieve your client from the provider configure method
-	// client := meta.(*apiClient)
+	client := meta.(*apiClient)
+	id := d.Id()
+
+	timezone := d.Get("timezone").(string)
+	err := client.plausibleClient.UpdateSite(id, timezone)
+	if err != nil {
+		return err
+	}
+	d.Set("timezone", timezone)
 
 	return nil
 }
