@@ -13,6 +13,9 @@ func resourceSite() *schema.Resource {
 		Read:   resourceSiteRead,
 		Update: resourceSiteUpdate,
 		Delete: resourceSiteDelete,
+		Importer: &schema.ResourceImporter{
+			State: schema.ImportStatePassthrough,
+		},
 
 		Schema: map[string]*schema.Schema{
 			"domain": {
