@@ -19,6 +19,11 @@ func TestAccResourceSite(t *testing.T) {
 					resource.TestCheckResourceAttr("plausible_site.testacc", "timezone", "Pacific/Auckland"),
 				),
 			},
+			{
+				ResourceName:      "plausible_site.testacc",
+				ImportState:       true,
+				ImportStateVerify: true,
+			},
 		},
 	})
 }
