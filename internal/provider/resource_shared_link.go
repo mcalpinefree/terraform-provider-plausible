@@ -46,7 +46,7 @@ func resourceSharedLinkCreate(d *schema.ResourceData, meta interface{}) error {
 }
 
 func resourceSharedLinkSetResourceData(sharedLink *plausibleclient.SharedLink, d *schema.ResourceData) error {
-	d.Set("domain", sharedLink.Domain)
+	d.Set("site_id", sharedLink.Domain)
 	d.Set("password", sharedLink.Password)
 	d.Set("link", sharedLink.Link)
 	return nil
