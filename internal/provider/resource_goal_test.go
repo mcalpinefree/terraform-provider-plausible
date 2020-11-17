@@ -20,6 +20,12 @@ func TestAccResourceGoal(t *testing.T) {
 					resource.TestMatchResourceAttr("plausible_goal.testacc", "id", regexp.MustCompile(`^[0-9]+$`)),
 				),
 			},
+			{
+				ResourceName:      "plausible_goal.testacc",
+				ImportState:       true,
+				ImportStateVerify: true,
+				ImportStateIdFunc: domainAndIDImportStateIDFunc("plausible_goal.testacc"),
+			},
 		},
 	})
 }
