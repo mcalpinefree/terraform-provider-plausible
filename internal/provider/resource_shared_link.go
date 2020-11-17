@@ -12,6 +12,11 @@ func resourceSharedLink() *schema.Resource {
 		Delete: resourceSharedLinkDelete,
 
 		Schema: map[string]*schema.Schema{
+			"id": {
+				Description: "The shared link ID",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
 			"site_id": {
 				Description: "The domain of the site to create the shared link for.",
 				Type:        schema.TypeString,

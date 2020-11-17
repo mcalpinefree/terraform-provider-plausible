@@ -19,11 +19,11 @@ description: |-
 
 ### Optional
 
-- **id** (String, Optional) The ID of this resource.
 - **password** (String, Optional) Add a password or leave it blank so anyone with the link can see the stats.
 
 ### Read-only
 
+- **id** (String, Read-only) The shared link ID
 - **link** (String, Read-only) Shared link
 
 

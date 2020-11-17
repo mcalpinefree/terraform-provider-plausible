@@ -2,21 +2,26 @@ package plausibleclient
 
 import (
 	"fmt"
-	"log"
 	"net/url"
-	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
-type SharedLink struct {
-	ID       string
-	Domain   string
-	Password string
-	Link     string
+type Goal struct {
+	ID        int
+	Domain    string
+	PagePath  *string
+	EventName *string
 }
 
-func (c *Client) CreateSharedLink(domain, password string) (*SharedLink, error) {
+type GoalType int
+
+const (
+	PagePath GoalType = iota
+	EventName
+)
+
+func (c *Client) CreateGoal(domain string, goalType GoalType, goal string) (*Goal, error) {
 	if !c.loggedIn {
 		err := c.login()
 		if err != nil {
@@ -27,7 +32,7 @@ func (c *Client) CreateSharedLink(domain, password string) (*SharedLink, error) 
 	c.mutexkv.Lock(domain)
 	defer c.mutexkv.Unlock(domain)
 
-	resp, err := c.httpClient.Get("https://plausible.io/sites/" + domain + "/shared-links/new")
+	resp, err := c.httpClient.Get("https://plausible.io/" + domain + "/goals/new")
 	if err != nil {
 		return nil, err
 	}
@@ -49,19 +54,33 @@ func (c *Client) CreateSharedLink(domain, password string) (*SharedLink, error) 
 		return nil, fmt.Errorf("could not find csrf token in HTML form")
 	}
 
-	// super hacky but the /shared-links POST does not return the ID of the
-	// shared link that was created so we have to look up the shared links
-	// before and after the request and compare to find out what was
-	// created
+	values := url.Values{}
+	values.Add("_csrf_token", csrfToken)
+	result := Goal{Domain: domain}
+	switch goalType {
+	case PagePath:
+		result.PagePath = &goal
+	case EventName:
+		result.EventName = &goal
+	}
+
+	if result.PagePath != nil {
+		values.Add("goal[page_path]", *result.PagePath)
+	} else {
+		values.Add("goal[page_path]", "")
+	}
+	if result.EventName != nil {
+		values.Add("goal[event_name]", *result.EventName)
+	} else {
+		values.Add("goal[event_name]", "")
+	}
+
 	before, err := c.GetSiteSettings(domain)
 	if err != nil {
 		return nil, err
 	}
 
-	values := url.Values{}
-	values.Add("_csrf_token", csrfToken)
-	values.Add("shared_link[password]", password)
-	_, err = c.httpClient.PostForm("https://plausible.io/sites/"+domain+"/shared-links", values)
+	_, err = c.httpClient.PostForm("https://plausible.io/"+domain+"/goals", values)
 	if err != nil {
 		return nil, err
 	}
@@ -71,30 +90,25 @@ func (c *Client) CreateSharedLink(domain, password string) (*SharedLink, error) 
 		return nil, err
 	}
 
-	if len(before.SharedLinks) != (len(after.SharedLinks) - 1) {
-		return nil, fmt.Errorf("expected there to be one more shared link after requesting to create a new one, but the count went from %d to %d", len(before.SharedLinks), len(after.SharedLinks))
+	if len(before.Goals) != (len(after.Goals) - 1) {
+		return nil, fmt.Errorf("expected there to be one more goal after requesting to create a new one, but the count went from %d to %d", len(before.SharedLinks), len(after.SharedLinks))
 	}
 
 AFTER:
-	for _, v := range after.SharedLinks {
-		for _, w := range before.SharedLinks {
+	for _, v := range after.Goals {
+		for _, w := range before.Goals {
 			if v == w {
 				continue AFTER
 			}
 		}
-		parts := strings.Split(v, "/")
-		return &SharedLink{
-			ID:       parts[len(parts)-1],
-			Domain:   domain,
-			Password: password,
-			Link:     v,
-		}, nil
+		result.ID = v
+		return &result, nil
 	}
 
-	return nil, fmt.Errorf("could not find newly created shared link")
+	return nil, fmt.Errorf("could not find newly created goal")
 }
 
-func (c *Client) DeleteSharedLink(domain, id string) error {
+func (c *Client) DeleteGoal(domain string, id int) error {
 	if !c.loggedIn {
 		err := c.login()
 		if err != nil {
@@ -120,8 +134,7 @@ func (c *Client) DeleteSharedLink(domain, id string) error {
 	// Find the form CSRF token
 	csrfToken := ""
 	csrfTokenExists := false
-	cssSelector := fmt.Sprintf(`button[data-to="/sites/%s/shared-links/%s"]`, domain, id)
-	log.Printf("[TRACE] cssSelector: %s\n", cssSelector)
+	cssSelector := fmt.Sprintf(`button[data-to="/%s/goals/%d"]`, domain, id)
 	doc.Find(cssSelector).Each(func(i int, s *goquery.Selection) {
 		csrfToken, csrfTokenExists = s.Attr("data-csrf")
 	})
@@ -132,6 +145,6 @@ func (c *Client) DeleteSharedLink(domain, id string) error {
 	values := url.Values{}
 	values.Add("_csrf_token", csrfToken)
 	values.Add("_method", "delete")
-	_, err = c.httpClient.PostForm("https://plausible.io/sites/"+domain+"/shared-links/"+id, values)
+	_, err = c.httpClient.PostForm(fmt.Sprintf("https://plausible.io/%s/goals/%d", domain, id), values)
 	return err
 }

@@ -31,6 +31,7 @@ func New(version string) func() *schema.Provider {
 			ResourcesMap: map[string]*schema.Resource{
 				"plausible_site":        resourceSite(),
 				"plausible_shared_link": resourceSharedLink(),
+				"plausible_goal":        resourceGoal(),
 			},
 		}
 
