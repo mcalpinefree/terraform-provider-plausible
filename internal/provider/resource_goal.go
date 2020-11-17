@@ -13,6 +13,9 @@ func resourceGoal() *schema.Resource {
 		Create: resourceGoalCreate,
 		Read:   resourceGoalRead,
 		Delete: resourceGoalDelete,
+		Importer: &schema.ResourceImporter{
+			State: importDomainAndID,
+		},
 
 		Schema: map[string]*schema.Schema{
 			"id": {
@@ -27,18 +30,18 @@ func resourceGoal() *schema.Resource {
 				ForceNew:    true,
 			},
 			"page_path": {
-				Description:   "Page path event. E.g. `/success`",
-				Type:          schema.TypeString,
-				Optional:      true,
-				ForceNew:      true,
-				ConflictsWith: []string{"event_name"},
+				Description:  "Page path event. E.g. `/success`",
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				ExactlyOneOf: []string{"page_path", "event_name"},
 			},
 			"event_name": {
-				Description:   "Custom event E.g. `Signup`",
-				Type:          schema.TypeString,
-				Optional:      true,
-				ForceNew:      true,
-				ConflictsWith: []string{"page_path"},
+				Description:  "Custom event E.g. `Signup`",
+				Type:         schema.TypeString,
+				Optional:     true,
+				ForceNew:     true,
+				ExactlyOneOf: []string{"page_path", "event_name"},
 			},
 		},
 	}
@@ -72,35 +75,25 @@ func resourceGoalCreate(d *schema.ResourceData, meta interface{}) error {
 func resourceGoalSetResourceData(g *plausibleclient.Goal, d *schema.ResourceData) error {
 	d.Set("site_id", g.Domain)
 	if g.PagePath != nil {
-		d.Set("page_path", *g.PagePath)
-	} else if g.EventName != nil {
+		d.Set("page_path", g.PagePath)
+	}
+	if g.EventName != nil {
 		d.Set("event_name", *g.EventName)
-	} else {
-		return fmt.Errorf("either PagePath or EventName needs to not be nil")
 	}
 	return nil
 }
 
 func resourceGoalRead(d *schema.ResourceData, meta interface{}) error {
-	id := d.Id()
-
-	idInt, err := strconv.Atoi(id)
+	client := meta.(*apiClient)
+	id, err := strconv.Atoi(d.Id())
 	if err != nil {
 		return err
 	}
-	g := &plausibleclient.Goal{
-		ID:     idInt,
-		Domain: d.Get("site_id").(string),
-	}
+	domain := d.Get("site_id").(string)
 
-	if v, ok := d.GetOk("page_path"); ok {
-		pagePath := v.(string)
-		g.PagePath = &pagePath
-	} else if v, ok := d.GetOk("event_name"); ok {
-		eventName := v.(string)
-		g.EventName = &eventName
-	} else {
-		return fmt.Errorf("page_path or event_name needs to be defined")
+	g, err := client.plausibleClient.GetGoal(domain, id)
+	if err != nil {
+		return err
 	}
 
 	return resourceGoalSetResourceData(g, d)

@@ -3,6 +3,7 @@ package plausibleclient
 import (
 	"fmt"
 	"net/url"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -106,6 +107,49 @@ AFTER:
 	}
 
 	return nil, fmt.Errorf("could not find newly created goal")
+}
+
+func (c *Client) GetGoal(domain string, id int) (*Goal, error) {
+	if !c.loggedIn {
+		err := c.login()
+		if err != nil {
+			return nil, err
+		}
+	}
+
+	c.mutexkv.Lock(domain)
+	defer c.mutexkv.Unlock(domain)
+
+	result := Goal{ID: id, Domain: domain}
+
+	resp, err := c.httpClient.Get("https://plausible.io/" + domain + "/settings")
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	// Load the HTML document
+	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	cssSelector := fmt.Sprintf(`button[data-to="/%s/goals/%d"]`, domain, id)
+	doc.Find(cssSelector).Each(func(i int, s *goquery.Selection) {
+		var c string
+		s.SiblingsFiltered("small").Each(func(i int, s *goquery.Selection) {
+			h, _ := s.Html()
+			c = strings.TrimSpace(h)
+		})
+		if strings.HasPrefix(c, "Visit /") {
+			pagePath := strings.TrimPrefix(c, "Visit ")
+			result.PagePath = &pagePath
+		} else {
+			result.EventName = &c
+		}
+	})
+
+	return &result, nil
 }
 
 func (c *Client) DeleteGoal(domain string, id int) error {
