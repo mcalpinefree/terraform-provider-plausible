@@ -18,12 +18,9 @@ description: |-
 - **domain** (String, Required)
 - **timezone** (String, Required)
 
-### Optional
-
-- **id** (String, Optional) The ID of this resource.
-
 ### Read-only
 
+- **id** (String, Read-only) The site ID
 - **javascript_snippet** (String, Read-only) Include this snippet in the <head> of your website.
 
 

@@ -11,6 +11,7 @@ type Client struct {
 	username   string
 	password   string
 	loggedIn   bool
+	mutexkv    *MutexKV
 }
 
 func (c *Client) login() error {
@@ -38,6 +39,8 @@ func NewClient(username, password string) *Client {
 	c.httpClient = &http.Client{
 		Jar: jar,
 	}
+
+	c.mutexkv = NewMutexKV()
 
 	return &c
 }

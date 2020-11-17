@@ -18,6 +18,11 @@ func resourceSite() *schema.Resource {
 		},
 
 		Schema: map[string]*schema.Schema{
+			"id": {
+				Description: "The site ID",
+				Type:        schema.TypeString,
+				Computed:    true,
+			},
 			"domain": {
 				Type:     schema.TypeString,
 				Required: true,

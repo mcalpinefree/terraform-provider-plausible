@@ -3,6 +3,8 @@ package plausibleclient
 import (
 	"fmt"
 	"net/url"
+	"strconv"
+	"strings"
 
 	"github.com/PuerkitoBio/goquery"
 )
@@ -129,6 +131,7 @@ type SiteSettings struct {
 	Domain      string
 	Timezone    string
 	SharedLinks []string
+	Goals       []int
 }
 
 func (c *Client) GetSiteSettings(domain string) (*SiteSettings, error) {
@@ -174,9 +177,29 @@ func (c *Client) GetSiteSettings(domain string) (*SiteSettings, error) {
 		}
 	})
 
+	var goals []int
+	var errs []error
+	doc.Find(`button[data-to*="/` + domain + `/goals/"]`).Each(func(i int, s *goquery.Selection) {
+		g, exists := s.Attr("data-to")
+		if exists {
+			parts := strings.Split(g, "/")
+			id, err := strconv.Atoi(parts[len(parts)-1])
+			if err != nil {
+				errs = append(errs, err)
+				return
+			}
+			goals = append(goals, id)
+		}
+	})
+
+	if len(errs) > 0 {
+		return nil, fmt.Errorf("Could not parse goal ids: %v", errs)
+	}
+
 	return &SiteSettings{
 		Domain:      domain,
 		Timezone:    timezone,
 		SharedLinks: sharedLinks,
+		Goals:       goals,
 	}, nil
 }
