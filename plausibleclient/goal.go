@@ -33,14 +33,7 @@ func (c *Client) CreateGoal(domain string, goalType GoalType, goal string) (*Goa
 	c.mutexkv.Lock(domain)
 	defer c.mutexkv.Unlock(domain)
 
-	resp, err := c.httpClient.Get("https://plausible.io/" + domain + "/goals/new")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := c.getDocument("/" + domain + "/goals/new")
 	if err != nil {
 		return nil, err
 	}
@@ -122,14 +115,7 @@ func (c *Client) GetGoal(domain string, id int) (*Goal, error) {
 
 	result := Goal{ID: id, Domain: domain}
 
-	resp, err := c.httpClient.Get("https://plausible.io/" + domain + "/settings")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := c.getDocument("/" + domain + "/settings/goals")
 	if err != nil {
 		return nil, err
 	}
@@ -137,7 +123,7 @@ func (c *Client) GetGoal(domain string, id int) (*Goal, error) {
 	cssSelector := fmt.Sprintf(`button[data-to="/%s/goals/%d"]`, domain, id)
 	doc.Find(cssSelector).Each(func(i int, s *goquery.Selection) {
 		var c string
-		s.SiblingsFiltered("small").Each(func(i int, s *goquery.Selection) {
+		s.SiblingsFiltered("span").Each(func(i int, s *goquery.Selection) {
 			h, _ := s.Html()
 			c = strings.TrimSpace(h)
 		})
@@ -163,14 +149,7 @@ func (c *Client) DeleteGoal(domain string, id int) error {
 	c.mutexkv.Lock(domain)
 	defer c.mutexkv.Unlock(domain)
 
-	resp, err := c.httpClient.Get("https://plausible.io/" + domain + "/settings")
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := c.getDocument("/" + domain + "/settings/goals")
 	if err != nil {
 		return err
 	}

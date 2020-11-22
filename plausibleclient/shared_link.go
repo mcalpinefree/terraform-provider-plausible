@@ -27,14 +27,7 @@ func (c *Client) CreateSharedLink(domain, password string) (*SharedLink, error) 
 	c.mutexkv.Lock(domain)
 	defer c.mutexkv.Unlock(domain)
 
-	resp, err := c.httpClient.Get("https://plausible.io/sites/" + domain + "/shared-links/new")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := c.getDocument("/sites/" + domain + "/shared-links/new")
 	if err != nil {
 		return nil, err
 	}
@@ -105,14 +98,7 @@ func (c *Client) DeleteSharedLink(domain, id string) error {
 	c.mutexkv.Lock(domain)
 	defer c.mutexkv.Unlock(domain)
 
-	resp, err := c.httpClient.Get("https://plausible.io/" + domain + "/settings")
-	if err != nil {
-		return err
-	}
-	defer resp.Body.Close()
-
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := c.getDocument("/" + domain + "/settings/visibility")
 	if err != nil {
 		return err
 	}
