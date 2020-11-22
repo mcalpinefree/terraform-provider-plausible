@@ -16,15 +16,8 @@ func (c *Client) CreateSite(domain, timezone string) (*SiteSettings, error) {
 			return nil, err
 		}
 	}
-	// get csrf token
-	resp, err := c.httpClient.Get("https://plausible.io/sites/new")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
 
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := c.getDocument("/sites/new")
 	if err != nil {
 		return nil, err
 	}
@@ -57,15 +50,8 @@ func (c *Client) DeleteSite(domain string) error {
 			return err
 		}
 	}
-	// get csrf token
-	resp, err := c.httpClient.Get("https://plausible.io/" + domain + "/settings")
-	if err != nil {
-		return nil
-	}
-	defer resp.Body.Close()
 
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := c.getDocument("/" + domain + "/settings/danger-zone")
 	if err != nil {
 		return err
 	}
@@ -82,7 +68,7 @@ func (c *Client) DeleteSite(domain string) error {
 	values := url.Values{}
 	values.Add("_csrf_token", csrfToken)
 	values.Add("_method", "delete")
-	resp, err = c.httpClient.PostForm("https://plausible.io/"+domain, values)
+	_, err = c.httpClient.PostForm("https://plausible.io/"+domain, values)
 	return err
 }
 
@@ -93,15 +79,8 @@ func (c *Client) UpdateSite(domain, timezone string) (*SiteSettings, error) {
 			return nil, err
 		}
 	}
-	// get csrf token
-	resp, err := c.httpClient.Get("https://plausible.io/" + domain + "/settings")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
 
-	// Load the HTML document
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := c.getDocument("/" + domain + "/settings/general")
 	if err != nil {
 		return nil, err
 	}
@@ -141,13 +120,8 @@ func (c *Client) GetSiteSettings(domain string) (*SiteSettings, error) {
 			return nil, err
 		}
 	}
-	resp, err := c.httpClient.Get("https://plausible.io/" + domain + "/settings")
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
+	doc, err := c.getDocument("/" + domain + "/settings/general")
 	if err != nil {
 		return nil, err
 	}
@@ -169,6 +143,11 @@ func (c *Client) GetSiteSettings(domain string) (*SiteSettings, error) {
 		return nil, fmt.Errorf("could not find timezone in HTML document for %s", domain)
 	}
 
+	doc, err = c.getDocument("/" + domain + "/settings/visibility")
+	if err != nil {
+		return nil, err
+	}
+
 	var sharedLinks []string
 	doc.Find(`[value*='https://plausible.io/share/']`).Each(func(i int, s *goquery.Selection) {
 		sharedLink, sharedLinkExists := s.Attr("value")
@@ -176,6 +155,11 @@ func (c *Client) GetSiteSettings(domain string) (*SiteSettings, error) {
 			sharedLinks = append(sharedLinks, sharedLink)
 		}
 	})
+
+	doc, err = c.getDocument("/" + domain + "/settings/goals")
+	if err != nil {
+		return nil, err
+	}
 
 	var goals []int
 	var errs []error
@@ -202,4 +186,28 @@ func (c *Client) GetSiteSettings(domain string) (*SiteSettings, error) {
 		SharedLinks: sharedLinks,
 		Goals:       goals,
 	}, nil
+}
+
+func (c *Client) ListSites() ([]string, error) {
+	if !c.loggedIn {
+		err := c.login()
+		if err != nil {
+			return nil, err
+		}
+	}
+	doc, err := c.getDocument("/sites")
+	if err != nil {
+		return nil, err
+	}
+
+	var domains []string
+	doc.Find("a[href*='/settings']").Each(func(i int, s *goquery.Selection) {
+		href, exists := s.Attr("href")
+		parts := strings.Split(href, "/")
+		if exists {
+			domains = append(domains, parts[1])
+		}
+	})
+
+	return domains, nil
 }
