@@ -51,7 +51,8 @@ func (c *Client) DeleteSite(domain string) error {
 		}
 	}
 
-	doc, err := c.getDocument("/" + domain + "/settings/danger-zone")
+	dangeZonePath := "/" + domain + "/settings/danger-zone"
+	doc, err := c.getDocument(dangeZonePath)
 	if err != nil {
 		return err
 	}
@@ -63,7 +64,7 @@ func (c *Client) DeleteSite(domain string) error {
 		csrfToken, csrfTokenExists = s.Attr("data-csrf")
 	})
 	if !csrfTokenExists {
-		return fmt.Errorf("could not find csrf token in HTML form")
+		return fmt.Errorf("could not find csrf token in HTML form on page %s", dangeZonePath)
 	}
 	values := url.Values{}
 	values.Add("_csrf_token", csrfToken)
