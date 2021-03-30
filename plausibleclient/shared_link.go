@@ -76,6 +76,7 @@ AFTER:
 			}
 		}
 		parts := strings.Split(v, "/")
+		parts = strings.Split(parts[len(parts)-1], "?auth=")
 		return &SharedLink{
 			ID:       parts[len(parts)-1],
 			Domain:   domain,
@@ -88,6 +89,8 @@ AFTER:
 }
 
 func (c *Client) DeleteSharedLink(domain, id string) error {
+	log.Printf("[TRACE] DeleteSharedLink(\"%s\", \"%s\")\n", domain, id)
+
 	if !c.loggedIn {
 		err := c.login()
 		if err != nil {
@@ -98,7 +101,8 @@ func (c *Client) DeleteSharedLink(domain, id string) error {
 	c.mutexkv.Lock(domain)
 	defer c.mutexkv.Unlock(domain)
 
-	doc, err := c.getDocument("/" + domain + "/settings/visibility")
+	visibilityPath := "/" + domain + "/settings/visibility"
+	doc, err := c.getDocument(visibilityPath)
 	if err != nil {
 		return err
 	}
@@ -112,7 +116,7 @@ func (c *Client) DeleteSharedLink(domain, id string) error {
 		csrfToken, csrfTokenExists = s.Attr("data-csrf")
 	})
 	if !csrfTokenExists {
-		return fmt.Errorf("could not find csrf token in HTML form")
+		return fmt.Errorf("could not find csrf token in HTML form on page %s", visibilityPath)
 	}
 
 	values := url.Values{}
