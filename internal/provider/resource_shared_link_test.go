@@ -17,7 +17,7 @@ func TestAccResourceSharedLink(t *testing.T) {
 			{
 				Config: testAccResourceSharedLink(acctest.RandomWithPrefix("testacc-tf")),
 				Check: resource.ComposeTestCheckFunc(
-					resource.TestMatchResourceAttr("plausible_shared_link.testacc", "link", regexp.MustCompile(`^https:\/\/plausible.io\/share\/[a-zA-Z0-9-_]+$`)),
+					resource.TestMatchResourceAttr("plausible_shared_link.testacc", "link", regexp.MustCompile(`^https:\/\/plausible.io\/share\/[a-zA-Z0-9-_]+\?auth=[a-zA-Z0-9-_]+$`)),
 				),
 			},
 		},
