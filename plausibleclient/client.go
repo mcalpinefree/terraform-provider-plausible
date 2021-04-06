@@ -1,6 +1,7 @@
 package plausibleclient
 
 import (
+	"fmt"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
@@ -18,13 +19,33 @@ type Client struct {
 }
 
 func (c *Client) login() error {
-	values := url.Values{}
-	values.Add("email", c.username)
-	values.Add("password", c.password)
-	_, err := c.httpClient.PostForm("https://plausible.io/login", values)
+	doc, err := c.getDocument("/login")
 	if err != nil {
 		return err
 	}
+
+	csrfToken := ""
+	csrfTokenExists := false
+	doc.Find(`form > input[name="_csrf_token"]`).Each(func(i int, s *goquery.Selection) {
+		csrfToken, csrfTokenExists = s.Attr("value")
+	})
+	if !csrfTokenExists {
+		return fmt.Errorf("could not find csrf token in login page")
+	}
+
+	values := url.Values{}
+	values.Add("_csrf_token", csrfToken)
+	values.Add("email", c.username)
+	values.Add("password", c.password)
+	resp, err := c.httpClient.PostForm("https://plausible.io/login", values)
+	if err != nil {
+		return err
+	}
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("could not login, received status: %s", resp.Status)
+	}
+
 	c.loggedIn = true
 	return nil
 }
@@ -50,7 +71,12 @@ func NewClient(username, password string) *Client {
 }
 
 func (c *Client) getDocument(path string) (*goquery.Document, error) {
-	resp, err := c.httpClient.Get(c.baseURL + path)
+	req, err := http.NewRequest("GET", c.baseURL+path, nil)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := c.httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
