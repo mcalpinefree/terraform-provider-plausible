@@ -1,6 +1,6 @@
 module github.com/mcalpinefree/terraform-provider-plausible
 
-go 1.12
+go 1.17
 
 require (
 	github.com/PuerkitoBio/goquery v1.8.0
