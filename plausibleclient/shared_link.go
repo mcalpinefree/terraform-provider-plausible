@@ -16,7 +16,7 @@ type SharedLink struct {
 	Link     string
 }
 
-func (c *Client) CreateSharedLink(domain, password string) (*SharedLink, error) {
+func (c *Client) CreateSharedLink(domain, name, password string) (*SharedLink, error) {
 	if !c.loggedIn {
 		err := c.login()
 		if err != nil {
@@ -53,8 +53,9 @@ func (c *Client) CreateSharedLink(domain, password string) (*SharedLink, error) 
 
 	values := url.Values{}
 	values.Add("_csrf_token", csrfToken)
+	values.Add("shared_link[name]", name)
 	values.Add("shared_link[password]", password)
-	_, err = c.httpClient.PostForm("https://plausible.io/sites/"+domain+"/shared-links", values)
+	_, err = c.postForm(c.baseURL+"/sites/"+domain+"/shared-links", values)
 	if err != nil {
 		return nil, err
 	}
@@ -122,6 +123,6 @@ func (c *Client) DeleteSharedLink(domain, id string) error {
 	values := url.Values{}
 	values.Add("_csrf_token", csrfToken)
 	values.Add("_method", "delete")
-	_, err = c.httpClient.PostForm("https://plausible.io/sites/"+domain+"/shared-links/"+id, values)
+	_, err = c.postForm(c.baseURL+"/sites/"+domain+"/shared-links/"+id, values)
 	return err
 }

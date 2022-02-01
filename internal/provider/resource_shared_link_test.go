@@ -33,6 +33,7 @@ resource "plausible_site" "testacc" {
 
 resource "plausible_shared_link" "testacc" {
     site_id = plausible_site.testacc.id
+    name = "abc"
 }
 	`, domain)
 }

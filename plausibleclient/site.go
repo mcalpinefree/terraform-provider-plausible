@@ -2,6 +2,7 @@ package plausibleclient
 
 import (
 	"fmt"
+	"log"
 	"net/url"
 	"strconv"
 	"strings"
@@ -36,7 +37,7 @@ func (c *Client) CreateSite(domain, timezone string) (*SiteSettings, error) {
 	values.Add("_csrf_token", csrfToken)
 	values.Add("site[domain]", domain)
 	values.Add("site[timezone]", timezone)
-	_, err = c.httpClient.PostForm("https://plausible.io/sites", values)
+	_, err = c.postForm(c.baseURL+"/sites", values)
 	return &SiteSettings{
 		Domain:   domain,
 		Timezone: timezone,
@@ -44,6 +45,7 @@ func (c *Client) CreateSite(domain, timezone string) (*SiteSettings, error) {
 }
 
 func (c *Client) DeleteSite(domain string) error {
+	log.Printf("[DEBUG] DeleteSite")
 	if !c.loggedIn {
 		err := c.login()
 		if err != nil {
@@ -60,8 +62,12 @@ func (c *Client) DeleteSite(domain string) error {
 	// Find the form CSRF token
 	csrfToken := ""
 	csrfTokenExists := false
+
 	doc.Find(`a[data-method="delete"]`).Each(func(i int, s *goquery.Selection) {
-		csrfToken, csrfTokenExists = s.Attr("data-csrf")
+		text := s.Text()
+		if text == "Delete "+domain {
+			csrfToken, csrfTokenExists = s.Attr("data-csrf")
+		}
 	})
 	if !csrfTokenExists {
 		return fmt.Errorf("could not find csrf token in HTML form on page %s", dangeZonePath)
@@ -69,7 +75,7 @@ func (c *Client) DeleteSite(domain string) error {
 	values := url.Values{}
 	values.Add("_csrf_token", csrfToken)
 	values.Add("_method", "delete")
-	_, err = c.httpClient.PostForm("https://plausible.io/"+domain, values)
+	_, err = c.postForm(c.baseURL+"/"+domain, values)
 	return err
 }
 
@@ -100,7 +106,7 @@ func (c *Client) UpdateSite(domain, timezone string) (*SiteSettings, error) {
 	values.Add("_csrf_token", csrfToken)
 	values.Add("_method", "put")
 	values.Add("site[timezone]", timezone)
-	_, err = c.httpClient.PostForm("https://plausible.io/"+domain+"/settings", values)
+	_, err = c.postForm(c.baseURL+"/"+domain+"/settings", values)
 	return &SiteSettings{
 		Domain:   domain,
 		Timezone: timezone,
@@ -178,7 +184,7 @@ func (c *Client) GetSiteSettings(domain string) (*SiteSettings, error) {
 	})
 
 	if len(errs) > 0 {
-		return nil, fmt.Errorf("Could not parse goal ids: %v", errs)
+		return nil, fmt.Errorf("could not parse goal ids: %v", errs)
 	}
 
 	return &SiteSettings{

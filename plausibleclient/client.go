@@ -2,20 +2,23 @@ package plausibleclient
 
 import (
 	"fmt"
+	"math"
 	"net/http"
 	"net/http/cookiejar"
 	"net/url"
+	"time"
 
 	"github.com/PuerkitoBio/goquery"
 )
 
 type Client struct {
-	httpClient *http.Client
-	username   string
-	password   string
-	loggedIn   bool
-	mutexkv    *MutexKV
-	baseURL    string
+	httpClient  *http.Client
+	username    string
+	password    string
+	loggedIn    bool
+	mutexkv     *MutexKV
+	baseURL     string
+	maxAttempts int
 }
 
 func (c *Client) login() error {
@@ -37,7 +40,7 @@ func (c *Client) login() error {
 	values.Add("_csrf_token", csrfToken)
 	values.Add("email", c.username)
 	values.Add("password", c.password)
-	resp, err := c.httpClient.PostForm("https://plausible.io/login", values)
+	resp, err := c.postForm(c.baseURL+"/login", values)
 	if err != nil {
 		return err
 	}
@@ -50,11 +53,12 @@ func (c *Client) login() error {
 	return nil
 }
 
-func NewClient(username, password string) *Client {
+func NewClient(url, username, password string) *Client {
 	c := Client{}
 	c.username = username
 	c.password = password
-	c.baseURL = "https://plausible.io"
+	c.baseURL = url
+	c.maxAttempts = 10
 
 	jar, err := cookiejar.New(nil)
 	if err != nil {
@@ -76,16 +80,49 @@ func (c *Client) getDocument(path string) (*goquery.Document, error) {
 		return nil, err
 	}
 
-	resp, err := c.httpClient.Do(req)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
+	attempts := 1
+	for {
+		resp, err := c.httpClient.Do(req)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
 
-	doc, err := goquery.NewDocumentFromReader(resp.Body)
-	if err != nil {
-		return nil, err
-	}
+		if resp.StatusCode == http.StatusTooManyRequests {
+			if attempts > c.maxAttempts {
+				return nil, fmt.Errorf("request failed after %d attempts with status: %s", c.maxAttempts, resp.Status)
+			}
+			time.Sleep(time.Duration(math.Pow(1.5, float64(attempts))) * time.Second)
+			attempts++
+			continue
+		}
 
-	return doc, nil
+		doc, err := goquery.NewDocumentFromReader(resp.Body)
+		if err != nil {
+			return nil, err
+		}
+
+		return doc, nil
+	}
+}
+
+func (c *Client) postForm(url string, values url.Values) (*http.Response, error) {
+	attempts := 1
+	for {
+		resp, err := c.httpClient.PostForm(url, values)
+		if err != nil {
+			return nil, err
+		}
+		defer resp.Body.Close()
+		if resp.StatusCode == http.StatusTooManyRequests {
+			if attempts > c.maxAttempts {
+				return nil, fmt.Errorf("request failed after %d attempts with status: %s", c.maxAttempts, resp.Status)
+			}
+			time.Sleep(time.Duration(math.Pow(1.5, float64(attempts))) * time.Second)
+			attempts++
+			continue
+		}
+		return resp, err
+
+	}
 }
