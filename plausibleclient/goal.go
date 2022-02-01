@@ -74,7 +74,7 @@ func (c *Client) CreateGoal(domain string, goalType GoalType, goal string) (*Goa
 		return nil, err
 	}
 
-	_, err = c.httpClient.PostForm("https://plausible.io/"+domain+"/goals", values)
+	_, err = c.postForm(c.baseURL+"/"+domain+"/goals", values)
 	if err != nil {
 		return nil, err
 	}
@@ -85,7 +85,7 @@ func (c *Client) CreateGoal(domain string, goalType GoalType, goal string) (*Goa
 	}
 
 	if len(before.Goals) != (len(after.Goals) - 1) {
-		return nil, fmt.Errorf("expected there to be one more goal after requesting to create a new one, but the count went from %d to %d", len(before.SharedLinks), len(after.SharedLinks))
+		return nil, fmt.Errorf("expected there to be one more goal after requesting to create a new one, but the count went from %d to %d", len(before.Goals), len(after.Goals))
 	}
 
 AFTER:
@@ -168,6 +168,6 @@ func (c *Client) DeleteGoal(domain string, id int) error {
 	values := url.Values{}
 	values.Add("_csrf_token", csrfToken)
 	values.Add("_method", "delete")
-	_, err = c.httpClient.PostForm(fmt.Sprintf("https://plausible.io/%s/goals/%d", domain, id), values)
+	_, err = c.postForm(fmt.Sprintf(c.baseURL+"/%s/goals/%d", domain, id), values)
 	return err
 }

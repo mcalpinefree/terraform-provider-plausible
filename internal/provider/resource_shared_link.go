@@ -23,6 +23,12 @@ func resourceSharedLink() *schema.Resource {
 				Required:    true,
 				ForceNew:    true,
 			},
+			"name": {
+				Description: "The name of the shared link to create.",
+				Type:        schema.TypeString,
+				Required:    true,
+				ForceNew:    true,
+			},
 			"password": {
 				Description: "Add a password or leave it blank so anyone with the link can see the stats.",
 				Type:        schema.TypeString,
@@ -41,8 +47,9 @@ func resourceSharedLink() *schema.Resource {
 func resourceSharedLinkCreate(d *schema.ResourceData, meta interface{}) error {
 	client := meta.(*apiClient)
 	domain := d.Get("site_id").(string)
+	name := d.Get("name").(string)
 	password := d.Get("password").(string)
-	sharedLink, err := client.plausibleClient.CreateSharedLink(domain, password)
+	sharedLink, err := client.plausibleClient.CreateSharedLink(domain, name, password)
 	if err != nil {
 		return err
 	}

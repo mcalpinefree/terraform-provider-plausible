@@ -12,6 +12,12 @@ func New(version string) func() *schema.Provider {
 	return func() *schema.Provider {
 		p := &schema.Provider{
 			Schema: map[string]*schema.Schema{
+				"url": {
+					Description: "Plausible URL. Can be specified with the `PLAUSIBLE_URL` environment variable.",
+					Type:        schema.TypeString,
+					Required:    true,
+					DefaultFunc: schema.EnvDefaultFunc("PLAUSIBLE_URL", "https://plausible.io"),
+				},
 				"username": {
 					Description: "Plausible username. Can be specified with the `PLAUSIBLE_USERNAME` environment variable.",
 					Type:        schema.TypeString,
@@ -53,9 +59,10 @@ func configure(version string, p *schema.Provider) func(context.Context, *schema
 		// Setup a User-Agent for your API client (replace the provider name for yours):
 		// userAgent := p.UserAgent("terraform-provider-plausible", version)
 		// TODO: myClient.UserAgent = userAgent
+		url := d.Get("url").(string)
 		username := d.Get("username").(string)
 		password := d.Get("password").(string)
-		c := plausibleclient.NewClient(username, password)
+		c := plausibleclient.NewClient(url, username, password)
 		return &apiClient{plausibleClient: c}, nil
 	}
 }
