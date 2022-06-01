@@ -17,12 +17,12 @@ description: |-
 
 ### Required
 
-- **domain** (String)
-- **timezone** (String)
+- `domain` (String)
+- `timezone` (String)
 
 ### Read-Only
 
-- **id** (String) The site ID
-- **javascript_snippet** (String) Include this snippet in the <head> of your website.
+- `id` (String) The site ID
+- `javascript_snippet` (String) Include this snippet in the <head> of your website.
 
 

@@ -30,8 +30,7 @@ func testAccPreCheck(t *testing.T) {
 	// about the appropriate environment variables being set are common to see in a pre-check
 	// function.
 	variables := []string{
-		"PLAUSIBLE_USERNAME",
-		"PLAUSIBLE_PASSWORD",
+		"PLAUSIBLE_API_KEY",
 	}
 
 	for _, variable := range variables {

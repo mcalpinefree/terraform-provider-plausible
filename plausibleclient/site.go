@@ -1,220 +1,85 @@
 package plausibleclient
 
 import (
+	"encoding/json"
 	"fmt"
+	"io/ioutil"
 	"log"
+	"net/http"
 	"net/url"
-	"strconv"
-	"strings"
-
-	"github.com/PuerkitoBio/goquery"
 )
 
-func (c *Client) CreateSite(domain, timezone string) (*SiteSettings, error) {
-	if !c.loggedIn {
-		err := c.login()
-		if err != nil {
-			return nil, err
-		}
+func (c *Client) GetSite(domain string) (*Site, error) {
+	req, err := http.NewRequest("GET", c.baseURL+"/api/v1/sites/"+domain, nil)
+	if err != nil {
+		return nil, err
 	}
-
-	doc, err := c.getDocument("/sites/new")
+	req.Header.Add("Authorization", "Bearer "+c.apiKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
 
-	// Find the form CSRF token
-	csrfToken := ""
-	csrfTokenExists := false
-	doc.Find(`form > input[name="_csrf_token"]`).Each(func(i int, s *goquery.Selection) {
-		csrfToken, csrfTokenExists = s.Attr("value")
-	})
-	if !csrfTokenExists {
-		return nil, fmt.Errorf("could not find csrf token in HTML form")
+	site := Site{}
+	err = json.Unmarshal(b, &site)
+	if err != nil {
+		return nil, err
 	}
+	return &site, nil
+}
 
+func (c *Client) CreateSite(domain, timezone string) (*Site, error) {
 	values := url.Values{}
-	values.Add("_csrf_token", csrfToken)
-	values.Add("site[domain]", domain)
-	values.Add("site[timezone]", timezone)
-	_, err = c.postForm(c.baseURL+"/sites", values)
-	return &SiteSettings{
-		Domain:   domain,
-		Timezone: timezone,
-	}, err
+	values.Add("domain", domain)
+	values.Add("timezone", timezone)
+	resp, err := c.postForm(c.baseURL+"/api/v1/sites", values)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	b, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	s := Site{}
+	err = json.Unmarshal(b, &s)
+	return &s, err
 }
 
 func (c *Client) DeleteSite(domain string) error {
 	log.Printf("[DEBUG] DeleteSite")
-	if !c.loggedIn {
-		err := c.login()
-		if err != nil {
-			return err
-		}
-	}
 
-	dangeZonePath := "/" + domain + "/settings/danger-zone"
-	doc, err := c.getDocument(dangeZonePath)
+	req, err := http.NewRequest("DELETE", c.baseURL+"/api/v1/sites/"+domain, nil)
+	if err != nil {
+		return err
+	}
+	req.Header.Add("Authorization", "Bearer "+c.apiKey)
+	resp, err := c.httpClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return err
 	}
 
-	// Find the form CSRF token
-	csrfToken := ""
-	csrfTokenExists := false
-
-	doc.Find(`a[data-method="delete"]`).Each(func(i int, s *goquery.Selection) {
-		text := s.Text()
-		if text == "Delete "+domain {
-			csrfToken, csrfTokenExists = s.Attr("data-csrf")
-		}
-	})
-	if !csrfTokenExists {
-		return fmt.Errorf("could not find csrf token in HTML form on page %s", dangeZonePath)
-	}
-	values := url.Values{}
-	values.Add("_csrf_token", csrfToken)
-	values.Add("_method", "delete")
-	_, err = c.postForm(c.baseURL+"/"+domain, values)
-	return err
-}
-
-func (c *Client) UpdateSite(domain, timezone string) (*SiteSettings, error) {
-	if !c.loggedIn {
-		err := c.login()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	doc, err := c.getDocument("/" + domain + "/settings/general")
+	a := struct {
+		Deleted bool `json:"deleted"`
+	}{}
+	err = json.Unmarshal(b, &a)
 	if err != nil {
-		return nil, err
+		return err
 	}
 
-	// Find the form CSRF token
-	csrfToken := ""
-	csrfTokenExists := false
-	doc.Find(`form > input[name="_csrf_token"]`).Each(func(i int, s *goquery.Selection) {
-		csrfToken, csrfTokenExists = s.Attr("value")
-	})
-	if !csrfTokenExists {
-		return nil, fmt.Errorf("could not find csrf token in HTML form")
+	if !a.Deleted {
+		return fmt.Errorf("could not delete site %s", domain)
 	}
 
-	values := url.Values{}
-	values.Add("_csrf_token", csrfToken)
-	values.Add("_method", "put")
-	values.Add("site[timezone]", timezone)
-	_, err = c.postForm(c.baseURL+"/"+domain+"/settings", values)
-	return &SiteSettings{
-		Domain:   domain,
-		Timezone: timezone,
-	}, err
-}
-
-type SiteSettings struct {
-	Domain      string
-	Timezone    string
-	SharedLinks []string
-	Goals       []int
-}
-
-func (c *Client) GetSiteSettings(domain string) (*SiteSettings, error) {
-	if !c.loggedIn {
-		err := c.login()
-		if err != nil {
-			return nil, err
-		}
-	}
-
-	doc, err := c.getDocument("/" + domain + "/settings/general")
-	if err != nil {
-		return nil, err
-	}
-
-	domainExists := false
-	doc.Find("#site_domain").Each(func(i int, s *goquery.Selection) {
-		domain, domainExists = s.Attr("value")
-	})
-	if !domainExists {
-		return nil, fmt.Errorf("could not find domain in HTML document for %s", domain)
-	}
-
-	timezone := ""
-	timezoneExists := false
-	doc.Find(`#site_timezone > option[selected=""]`).Each(func(i int, s *goquery.Selection) {
-		timezone, timezoneExists = s.Attr("value")
-	})
-	if !timezoneExists {
-		return nil, fmt.Errorf("could not find timezone in HTML document for %s", domain)
-	}
-
-	doc, err = c.getDocument("/" + domain + "/settings/visibility")
-	if err != nil {
-		return nil, err
-	}
-
-	var sharedLinks []string
-	doc.Find(`[value*='https://plausible.io/share/']`).Each(func(i int, s *goquery.Selection) {
-		sharedLink, sharedLinkExists := s.Attr("value")
-		if sharedLinkExists {
-			sharedLinks = append(sharedLinks, sharedLink)
-		}
-	})
-
-	doc, err = c.getDocument("/" + domain + "/settings/goals")
-	if err != nil {
-		return nil, err
-	}
-
-	var goals []int
-	var errs []error
-	doc.Find(`button[data-to*="/` + domain + `/goals/"]`).Each(func(i int, s *goquery.Selection) {
-		g, exists := s.Attr("data-to")
-		if exists {
-			parts := strings.Split(g, "/")
-			id, err := strconv.Atoi(parts[len(parts)-1])
-			if err != nil {
-				errs = append(errs, err)
-				return
-			}
-			goals = append(goals, id)
-		}
-	})
-
-	if len(errs) > 0 {
-		return nil, fmt.Errorf("could not parse goal ids: %v", errs)
-	}
-
-	return &SiteSettings{
-		Domain:      domain,
-		Timezone:    timezone,
-		SharedLinks: sharedLinks,
-		Goals:       goals,
-	}, nil
-}
-
-func (c *Client) ListSites() ([]string, error) {
-	if !c.loggedIn {
-		err := c.login()
-		if err != nil {
-			return nil, err
-		}
-	}
-	doc, err := c.getDocument("/sites")
-	if err != nil {
-		return nil, err
-	}
-
-	var domains []string
-	doc.Find("a[href*='/settings']").Each(func(i int, s *goquery.Selection) {
-		href, exists := s.Attr("href")
-		parts := strings.Split(href, "/")
-		if exists {
-			domains = append(domains, parts[1])
-		}
-	})
-
-	return domains, nil
+	return nil
 }

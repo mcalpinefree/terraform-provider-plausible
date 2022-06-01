@@ -17,6 +17,5 @@ description: |-
 
 ### Optional
 
-- **password** (String) Plausible password. Can be specified with the `PLAUSIBLE_PASSWORD` environment variable.
-- **url** (String) Plausible URL. Can be specified with the `PLAUSIBLE_URL` environment variable.
-- **username** (String) Plausible username. Can be specified with the `PLAUSIBLE_USERNAME` environment variable.
+- `api_key` (String) Plausible API KEY. Can be specified with the `PLAUSIBLE_API_KEY` environment variable.
+- `url` (String) Plausible URL. Can be specified with the `PLAUSIBLE_URL` environment variable.
