@@ -1,20 +1,21 @@
 package provider
 
 import (
+	"context"
 	"fmt"
 
+	"github.com/hashicorp/terraform-plugin-sdk/v2/diag"
 	"github.com/hashicorp/terraform-plugin-sdk/v2/helper/schema"
 	"github.com/mcalpinefree/terraform-provider-plausible/plausibleclient"
 )
 
 func resourceSite() *schema.Resource {
 	return &schema.Resource{
-		Create: resourceSiteCreate,
-		Read:   resourceSiteRead,
-		Update: resourceSiteUpdate,
-		Delete: resourceSiteDelete,
+		CreateContext: resourceSiteCreate,
+		ReadContext:   resourceSiteRead,
+		DeleteContext: resourceSiteDelete,
 		Importer: &schema.ResourceImporter{
-			State: schema.ImportStatePassthrough,
+			StateContext: schema.ImportStatePassthroughContext,
 		},
 
 		Schema: map[string]*schema.Schema{
@@ -31,6 +32,7 @@ func resourceSite() *schema.Resource {
 			"timezone": {
 				Type:     schema.TypeString,
 				Required: true,
+				ForceNew: true,
 			},
 			"javascript_snippet": {
 				Description: "Include this snippet in the <head> of your website.",
@@ -41,53 +43,40 @@ func resourceSite() *schema.Resource {
 	}
 }
 
-func resourceSiteCreate(d *schema.ResourceData, meta interface{}) error {
+func resourceSiteCreate(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*apiClient)
 	domain := d.Get("domain").(string)
 	timezone := d.Get("timezone").(string)
-	siteSettings, err := client.plausibleClient.CreateSite(domain, timezone)
+	site, err := client.plausibleClient.CreateSite(domain, timezone)
 	if err != nil {
-		return err
+		return diag.Errorf("error creating site (%s): %s", d.Id(), err)
 	}
-	d.SetId(siteSettings.Domain)
-	return resourceSiteSetResourceData(siteSettings, d)
+	d.SetId(site.Domain)
+	return resourceSiteSetResourceData(site, d)
 }
 
-func resourceSiteSetResourceData(siteSettings *plausibleclient.SiteSettings, d *schema.ResourceData) error {
-	d.Set("domain", siteSettings.Domain)
-	d.Set("timezone", siteSettings.Timezone)
-	d.Set("javascript_snippet", fmt.Sprintf(`<script async defer data-domain="%s" src="https://plausible.io/js/plausible.js"></script>`, siteSettings.Domain))
+func resourceSiteSetResourceData(s *plausibleclient.Site, d *schema.ResourceData) diag.Diagnostics {
+	d.Set("domain", s.Domain)
+	d.Set("timezone", s.Timezone)
+	d.Set("javascript_snippet", fmt.Sprintf(`<script defer data-domain="%s" src="https://plausible.io/js/plausible.js"></script>`, s.Domain))
 	return nil
 }
 
-func resourceSiteRead(d *schema.ResourceData, meta interface{}) error {
+func resourceSiteRead(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*apiClient)
-	id := d.Id()
-
-	siteSettings, err := client.plausibleClient.GetSiteSettings(id)
+	site, err := client.plausibleClient.GetSite(d.Id())
 	if err != nil {
-		return err
+		return diag.Errorf("error getting site (%s): %s", d.Id(), err)
 	}
-
-	return resourceSiteSetResourceData(siteSettings, d)
+	return resourceSiteSetResourceData(site, d)
 }
 
-func resourceSiteUpdate(d *schema.ResourceData, meta interface{}) error {
-	// use the meta value to retrieve your client from the provider configure method
-	client := meta.(*apiClient)
-	id := d.Id()
-
-	timezone := d.Get("timezone").(string)
-	siteSettings, err := client.plausibleClient.UpdateSite(id, timezone)
-	if err != nil {
-		return err
-	}
-
-	return resourceSiteSetResourceData(siteSettings, d)
-}
-
-func resourceSiteDelete(d *schema.ResourceData, meta interface{}) error {
+func resourceSiteDelete(ctx context.Context, d *schema.ResourceData, meta interface{}) diag.Diagnostics {
 	client := meta.(*apiClient)
 	domain := d.Id()
-	return client.plausibleClient.DeleteSite(domain)
+	err := client.plausibleClient.DeleteSite(domain)
+	if err != nil {
+		return diag.Errorf("error deleting site (%s): %s", d.Id(), err)
+	}
+	return nil
 }

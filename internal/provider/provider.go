@@ -18,26 +18,18 @@ func New(version string) func() *schema.Provider {
 					Required:    true,
 					DefaultFunc: schema.EnvDefaultFunc("PLAUSIBLE_URL", "https://plausible.io"),
 				},
-				"username": {
-					Description: "Plausible username. Can be specified with the `PLAUSIBLE_USERNAME` environment variable.",
+				"api_key": {
+					Description: "Plausible API KEY. Can be specified with the `PLAUSIBLE_API_KEY` environment variable.",
 					Type:        schema.TypeString,
 					Required:    true,
-					DefaultFunc: schema.EnvDefaultFunc("PLAUSIBLE_USERNAME", ""),
-				},
-				"password": {
-					Description: "Plausible password. Can be specified with the `PLAUSIBLE_PASSWORD` environment variable.",
-					Type:        schema.TypeString,
-					Required:    true,
-					DefaultFunc: schema.EnvDefaultFunc("PLAUSIBLE_PASSWORD", ""),
+					DefaultFunc: schema.EnvDefaultFunc("PLAUSIBLE_API_KEY", ""),
 				},
 			},
 			DataSourcesMap: map[string]*schema.Resource{
 				//"scaffolding_data_source": dataSourceScaffolding(),
 			},
 			ResourcesMap: map[string]*schema.Resource{
-				"plausible_site":        resourceSite(),
-				"plausible_shared_link": resourceSharedLink(),
-				"plausible_goal":        resourceGoal(),
+				"plausible_site": resourceSite(),
 			},
 		}
 
@@ -60,9 +52,8 @@ func configure(version string, p *schema.Provider) func(context.Context, *schema
 		// userAgent := p.UserAgent("terraform-provider-plausible", version)
 		// TODO: myClient.UserAgent = userAgent
 		url := d.Get("url").(string)
-		username := d.Get("username").(string)
-		password := d.Get("password").(string)
-		c := plausibleclient.NewClient(url, username, password)
+		apiKey := d.Get("api_key").(string)
+		c := plausibleclient.NewClient(url, apiKey)
 		return &apiClient{plausibleClient: c}, nil
 	}
 }
