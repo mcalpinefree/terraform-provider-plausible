@@ -49,7 +49,7 @@ func resourceSiteCreate(ctx context.Context, d *schema.ResourceData, meta interf
 	timezone := d.Get("timezone").(string)
 	site, err := client.plausibleClient.CreateSite(domain, timezone)
 	if err != nil {
-		return diag.Errorf("error creating site (%s): %s", d.Id(), err)
+		return diag.Errorf("error creating site (%s): %s", domain, err)
 	}
 	d.SetId(site.Domain)
 	return resourceSiteSetResourceData(site, d)

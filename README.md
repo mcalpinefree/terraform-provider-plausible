@@ -55,3 +55,4 @@ In order to run the full suite of Acceptance tests, run `make testacc`.
 export PLAUSIBLE_API_KEY=XXXX
 $ make testacc
 ```
+

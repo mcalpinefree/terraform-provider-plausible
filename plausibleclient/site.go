@@ -10,6 +10,7 @@ import (
 )
 
 func (c *Client) GetSite(domain string) (*Site, error) {
+	log.Printf("[DEBUG] GetSite")
 	req, err := http.NewRequest("GET", c.baseURL+"/api/v1/sites/"+domain, nil)
 	if err != nil {
 		return nil, err
@@ -19,6 +20,7 @@ func (c *Client) GetSite(domain string) (*Site, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("[DEBUG] GetSite response %s", resp.Status)
 	defer resp.Body.Close()
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
@@ -34,6 +36,7 @@ func (c *Client) GetSite(domain string) (*Site, error) {
 }
 
 func (c *Client) CreateSite(domain, timezone string) (*Site, error) {
+	log.Printf("[DEBUG] CreateSite")
 	values := url.Values{}
 	values.Add("domain", domain)
 	values.Add("timezone", timezone)
@@ -41,14 +44,20 @@ func (c *Client) CreateSite(domain, timezone string) (*Site, error) {
 	if err != nil {
 		return nil, err
 	}
+	log.Printf("[DEBUG] CreateSite response %s", resp.Status)
 	defer resp.Body.Close()
 	b, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
 		return nil, err
 	}
-	s := Site{}
-	err = json.Unmarshal(b, &s)
-	return &s, err
+	log.Printf("[DEBUG] CreateSite response body %s", b)
+	if resp.StatusCode == http.StatusOK {
+		s := Site{}
+		err = json.Unmarshal(b, &s)
+		return &s, err
+	} else {
+		return nil, fmt.Errorf("could not create site: %s", b)
+	}
 }
 
 func (c *Client) DeleteSite(domain string) error {
